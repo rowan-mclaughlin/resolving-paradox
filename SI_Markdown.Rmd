@@ -17,7 +17,7 @@ This document contains the R code used to generate the kernel density and moving
 
 # Part I: Source code
 ## Loading calibration curves and the `rowcal` package
-The following script requires the `rowcal` package, which contains code that have been published before by McLaughlin 2019 (`rowcal, MCmix, MCdensity) and McLaughlin et al 2021 (`ggr, phasedensity`), and their associated S3 methods for  analyzing and plotting the objects created by these functions. It is planned to release this package on CRAN in due course, but it can also be downloaded and installed from github at any time using the `devtools` package. 
+The following script requires the `rowcal` package, which contains code that have been published before by McLaughlin 2019 (`rowcal`, `MCmix`, `MCdensity`) and McLaughlin et al 2021 (`ggr`, `phasedensity`), and their associated S3 methods for analyzing and plotting the objects created by these functions. It is planned to release this package on CRAN in due course, but it can also be downloaded and installed from github at any time using the `devtools` package. 
 ```{r, message=FALSE, warning=FALSE}
 # Install rowcal if not present on system
 if(!require(devtools)) install.packages('devtools')
@@ -35,6 +35,7 @@ The various utilities in the `rowcal` package use some form of Monte Carlo resam
 The probability distribution here is technically a probability mass function, and may be a radiocarbon date, a the posterior probability of an event in a Bayesian model, or a uniform distribution. The function `MCr.as.MCd` is used to convert the output of `MCrunmed` into a regular time grid, where the first column represents time stamps and the subsequent columns contain an approximation of each resampling run. This enables plotting via the `plot.MCd` function. More information about how these functions can be found in the `rowcal` [package documentation]( https://github.com/rowan-mclaughlin/rowcal). 
 
 ## Integrating chronological information from OxCal 
+
 Chronological precision can be improved for undated samples associated with material whose age is known via an existing 'OxCal' age model. The following script uses the objects created by the R package `oxcAAR`(Hinz et al 2021), which are resampled and used to explore response variables. In our study, these functions are mainly used to examine trends in published organic residue data. 
 ```{r message=FALSE, warning=FALSE}
 #Reformat OxCal posteriors as a two-column matrix of timestamps and prob. 
@@ -49,7 +50,9 @@ ox.as.rowcal<-function(x, ox=OxCalModel){
 ```
 
 # Part II: Data analysis for the main paper
+
 ## Preparing calibration curves and loading source data
+
 The first step in our analysis is to prepare a series of custom calibration curves to allow for the calibration of samples comprised of proteins derived from both terrestrial and marine biomes:
 ```{r message=FALSE, warning=FALSE}
 # calculate the mixed curves
@@ -87,20 +90,22 @@ dk<-dk_data[which(is.na(dk_data$Natural)),
 ```
 
 ## Spatial density
+
 ### Overal distribution maps
+
 The following script uses two-dimensional kernel density analysis to visualize spatial distributions in the density of sites. The locations of midden sites from the sites and monuments register for Denmark is read in from an external file, as is a shapefile containing the Danish coastline buffered by 5km.
 ```{r, message=FALSE, warning=FALSE}
 library(sf)
 library(spatstat)
 # Window for analysis
-dkb<-sf::st_read("~/Dropbox/GISMisc/Denmark/Denmark_UTM_buffered_5km.shp")
+dkb<-sf::st_read("Denmark_UTM_buffered_5km.shp")
 dk_window<-as.owin(dkb)
 
 # Coastline
-dkc<-st_read("~/Dropbox/GISMisc/Denmark/Denmark_UTM_outline.shp")
+dkc<-st_read("Denmark_UTM_outline.shp")
 
 # All SMR, all C14, and C14 sites in UTM format
-smr<-st_as_sf(read.csv('~/Dropbox/code/dk_smr.csv'), 
+smr<-st_as_sf(read.csv('dk_smr.csv'), 
               coords=c("long","lat"), crs=4326) |> st_transform(32632) 
 c14<-st_as_sf(dk_data[which(!is.na(dk_data$Longitude)),], 
               coords=c('Longitude','Latitude'), crs=4326) |> st_transform(32632)
@@ -113,10 +118,6 @@ plot(dk_window, lty=2)
 smrD<-density(rescale(as.ppp(smr$geometry, W=dk_window),1000,'km'), sigma=20)
 c14D<-density(rescale(as.ppp(c14$geometry, W=dk_window),1000,'km'), sigma=20)
 sitD<-density(rescale(as.ppp(sit$geometry, W=dk_window),1000,'km'), sigma=20)
-
-# ******** Exclude the following " ************ 
-#write.csv(sit, file='~/Dropbox/articles/Danish_shells/dated_sites.csv')
-#cat dated_sites.csv  | sed -e 's/c(//' | sed -e 's/)//g' > dated_sites.csv
 
 # Scale masking geometry to km instead of m
 dkc$geometry<-dkc$geometry/1000
@@ -143,7 +144,9 @@ mtext(L,outer=TRUE, side=1, adj=c(0.15,0.5,0.85),cex=0.75, line=-2)
 
 #dev.off()
 ```
+
 ### Density within timeslices
+
 Timeslicing radiocarbon data can be problematic because the probability margins of radiocarbon dates often make it ambiguous which 'slice' a sample belongs to. As a visualization stragegy, the following script applies the following algorithm to weight each site's contribution to the density estimate of each slice by the probability that a site dates to the timeframe under consideration:
 
 * for each timeslice
@@ -199,7 +202,9 @@ The `plot.imlist` function in `spatstat` can be used to visualise the results.
 ```
 
 ## Temporal density
+
 ### Shell middens
+
 The next step is to calculate the temporal kernel density estimate (KDE) for the shell midden data. This is done using hierarchical clustering to identify unique generational phases (`h=30`) at each site. The bandwidth of the KDE is 75 years. 
 
 ```{r message=FALSE, warning=FALSE}
@@ -214,7 +219,9 @@ plot(dk_kde, xaxt='n', xlim=c(-6200,-1000))
 # Add a ready-formatted x-axis with tickmarks
 ax()
 ```
+
 ### Natural shell banks
+
 Using the same procedure, this is calculated for sites identified as natural banks using only samples of shellfish.
 ```{r message=FALSE, warning=FALSE}
 shellsp<-c('Ostrea edulis','Mytilus edulis','Cerastoderma edule',
@@ -246,6 +253,7 @@ legend('topright',lty=c(2,1),legend=c('Natural shell','Archaeological dates'))
 ```
 
 ### All marine resources
+
 The following calculates a KDE for all directly-dated shellfish and other marine animals
 ```{r message=FALSE, warning=FALSE}
 marD<-MCdensity(dl=dk[which(dk$Curve=='marineD'),2:4],bw=75)
@@ -253,6 +261,7 @@ marD30<-MCdensity(dl=dk[which(dk$Curve=='marineD'),2:4],bw=30)
 ```
 
 ### Other archaeological sites in Denmark
+
 This mainly uses data from the p3k14c database, itself a compilation of other data sources (see Bird 2022 and references therein).
 ```{r message=FALSE, warning=FALSE}
 p3kd<-read_xlsx(dkURL, sheet='C-14 dates non-shell midden') |> as.data.frame()
@@ -271,7 +280,9 @@ ax()
 plot(dk_kde, add=T)
 legend('topleft',lty=c(1,3),legend=c('Shell middens','Other sites'))
 ```
+
 ### Density model of all sites, shell midden and otherwise
+
 This is produced by concatenating the tables for shell midden and non-shell midden ratiocarbon dates, and producing a `phasedensity` model all the dates.
 ```{r message=FALSE, warning=FALSE}
 temp<-nonSM[,c(11,3,4)]; temp$Curve<-'intcal'
@@ -285,6 +296,7 @@ plot(ALLD, xaxt='n'); ax()
 ```
 
 ### Domesticed animals and cereals
+
 These are relatively straightforward to calculate as we are interested in the temporal frequency of samples rather than site phases, and all samples use the intcal20 curve.
 ```{r message=FALSE, warning=FALSE}
 # Cereals
@@ -312,7 +324,9 @@ legend('topleft',pch=NA,legend='Cereal grains',bty='n')
 plot(daD, xlim=c(-5500,-2500),xaxt='n')
 ax(); legend('topleft',pch=NA,legend='Domesticated animals',bty='n')
 ```
+
 ### Point pattern density analysis
+
 The point-pattern analysis is done within a spatial window calculated from the current danish coastline buffered by 5km. This needs to be stored in the working directory. In the following custom code, the site locations are converted to UTM co-coordinates, and the time series developed using direct calls to the `MCsam` sampling function (see `rowcal` package documentation for more information.)
 ```{r message=FALSE, warning=FALSE}
 # Clark-Evans R
@@ -401,6 +415,7 @@ ar.as.MCd<-function(ar, mult=1){
 ```
 
 ### Plotting 
+
 The code below plots everything calculated above in one multi-panel plot
 ```{r, include=FALSE}
 # Code for plotting shaded polygons
@@ -486,6 +501,7 @@ legend('top', ncol=2, fill=c('#FF000020','#0000FF20'),border=NA,
 ## Animals and their human exploitation
 
 ### Artefacts and archaeological sites related to fishing 
+
 A number of these archaeological finds have been directly radiocarbon dated, so it is possible to compute a KDE to show their temporal distribution. For the traps and weirs, cluster analysis is used to correct for cases where multiple dates are obtained from the same site. 
 ```{r message=FALSE, warning=FALSE}
 fing<-read_xlsx(dkURL, 
@@ -509,7 +525,9 @@ plot(leisD, xlim=c(-6200,-2800), lty=2, col='#FF8080', fill='#FF808022',
          legend=c('Eel leisters','Weirs & traps','Shell middens','Other sites'))
   plot(nonSMD, add=T, lty=3)
 ```
+
 ### Seperate analysis of fish traps and weirs
+
 The above analysis counts traps and weirs together, but it is equally possible to analyse them seperately:
 ```{r message=FALSE, warning=FALSE}
 traps<-fing[which(fing$Feature=='Fish trap'),] 
@@ -528,7 +546,9 @@ plot(leisD, xlim=c(-6500,-2000),xaxt='n', col='#EE8080', fill='#EE808022',
 ax()
 
 ```
+
 ### Mollusc shells: number of minium number of animal units (MAU) 
+
 Time-series data are available from four cores from two sites, spanning the very end of the Meoslithic period and much of the Neolithic. There is considerable variablity between layers and sites so the moving average models here are run with a higher number of resamples so the resulting estimate is reasonably smooth.
 
 ```{r warning=FALSE}
@@ -635,6 +655,7 @@ mtext('BCE',side=1, outer=TRUE,line=0, adj=0.52)
 ```
 
 ### Fish and marine mammal bones: number of identified specimens (NISP)
+
 ```{r, warning=FALSE}
 mNISP<-read_xlsx(dkURL, sheet='Marine mammal NISP', 
                   na=c("","n.d.")) |> as.data.frame()
@@ -658,7 +679,9 @@ nisp_mm_sqm<-MCrunmed(x=rowunif(x0=-mNISP$`Start (BC)`, x1=-mNISP$`End (BC)`),
 
 
 ```
+
 ### Ratio of fish and mammal NISP per site
+
 ```{r message=FALSE, warning=FALSE}
 # Marine mammals vs total mammals
 nisp_ratio<- mNISP$`Total marine mammal NISP` / mNISP$`Total mammal NISP`
@@ -678,6 +701,7 @@ mfratio<-MCrunmed(x=rowunif(x0=-aNISP$`Start (BC).x`, x1=-aNISP$`End (BC).x`),
 ```
 
 ### Richness (number of taxa per site)
+
 ```{r, warning=FALSE}
 frich<-MCrunmed(x=rowunif(x0=-fNISP$`Start (BC)`, x1=-fNISP$`End (BC)`),
                 y=fNISP$`No. of taxa per site (richness)`,k=51) |> MCr.as.MCd()
@@ -686,6 +710,7 @@ mrich<-MCrunmed(x=rowunif(x0=-mNISP$`Start (BC)`, x1=-mNISP$`End (BC)`),
 ```
 
 ### Stable isotope results from marine fauna
+
 Here we are interested detecting any environmental change with time, as a baseline for interpreting human palaeodiet. We have controlled for the influence that tropic position would otherwise have on the results by conducting our analysis separately for three trophic levels: 4.1 (e.g. cod), 3.6 (e.g. eel) and 3.2 (e.g. flounder).
 ```{r, warning=FALSE, error=FALSE}
 aiso<-read_xlsx(dkURL, sheet='Isotopic data of faunal remains')
@@ -725,7 +750,9 @@ Nt32<-MCrunmed(x=rowunif(-t3.2$`Start (BC)`, -t3.2$`End (BC)`),
 cs<-function(x){o<-x[which(x[,1]>-5100),]; class(o)<-'MCd';o}
 Ct36<-cs(Ct36); Nt36<-cs(Nt36)
 ```
+
 ### Multipanel plot for animals
+
 ```{r message=FALSE, warning=FALSE}
 # pdf('animals.pdf', width=10.5, height=6)
 
@@ -801,8 +828,11 @@ plot(nisp_fish_sqm,ylab='NISP per sq. m.',xaxt='n',xlim=c(-6200,-2800),
          legend=c('Fish','Marine mammal'),bty='n')
   ax()
 ```
+
 ## Human isotopes
+
 ### Moving average models for shellmidden from non-shellmidden individuals
+
 The following script extracts the relevant data from the spreadsheet and calls the `MCrunmed` algorithm detailed in Part I. Here, moving models are calculated separately for samples of human bone tissue found from shell middens, and those found from other sites.
 ```{r message=FALSE, warning=FALSE}
 hiso<-read_xlsx(dkURL, 
@@ -842,6 +872,7 @@ smNB<-MCrunmed(x=rowcal(dl=sm_iso[,c(1:3)]), y=sm_iso[,5], k=21,
 ```
 
 ### Temporal density and median radiocarbon date
+
 As before, we calculate a KDE for the radiocarbon dated samples. See notes in the `rowcal` package documentaiton for further details on how the median date calculated. 
 ```{r message=FALSE, warning=FALSE}
 dk_iso_kde<-MCdensity(dl=dk_iso[,1:3], bw=75)
@@ -850,7 +881,11 @@ sm_iso_kde<-MCdensity(dl=sm_iso[,1:3], bw=75)
 dk_iso$median<-findmedian(rowcal(dl=dk_iso[,1:3]))
 sm_iso$median<-findmedian(rowcal(dl=sm_iso[,1:3]))
 ```
-### Plot of results
+
+### Visualising trends in isotopes
+
+In the following plot, both normal and bootstapped versions of the moving average model are presented. The uncertainty of the bootstrapped version, which is of a greater magnitude, reflects the variability in the data as well as its inherant chronological uncertainty. 
+
 ```{r message=FALSE, warning=FALSE}
 par(mfcol=c(2,2), mar=c(2,4.3,1,2),omi=c(0.2,0,0.3,0))
 plot(dkC, ylim=c(-22,-11), xaxt='n',main='Non-shell middens',xlim=c(-5800,-2800)
@@ -874,6 +909,7 @@ plot(smNB, add=TRUE, lty=0)
 ```
 
 ### SIBER analysis
+
 The R package `SIBER` (Jackson 2023) is used here to plot ellipses summarizing each group (shell midden / non shell midden) for two 'communities' (Mesolithic / Neolithic).
 ```{r, message=FALSE}
 library(SIBER)
@@ -891,7 +927,9 @@ all_iso<-createSiberObject(temp)
 #group.ML <- groupMetricsML(all_iso)
 #colnames(group.ML)<-c('Meso\nother','Meso.\nmidden','Neo.\nother','Neo.\nmidden')
 ```
+
 ### Aggregation by genetic cluster
+
 ```{r message=FALSE, warning=FALSE}
 cn<-c(CN,
 "Cluster group (Allentoft et al. 2024a; Allentoft et al. 2024b; Fischer et al. 2024)")
@@ -902,7 +940,9 @@ gh<-hiso[
 gh[,6]<-as.factor(gh[,6])
 key<-factor(gh$`Cluster group (Allentoft et al. 2024a; Allentoft et al. 2024b; Fischer et al. 2024)`)
 ```
+
 ###Bayesian food source analysis
+
 The following chuck requires the `simmr` package and its dependencies, hence also an installation of JAGS. 
 
 Here we use the average values at 4500 and 3500 BC to explore food sources. Target values were calculated by calling `mean(dk_iso[which(dk_iso$community=='Mesolithic'),'d13C'])`, etc.
@@ -964,6 +1004,7 @@ mixresults<-data.frame(ID=c('Meso SM','Meso non-SM','Neo SM','Neo non-SM'),
 ```
 
 ### Strontium isotope variability by cultural group
+
 ```{r, warning=FALSE, message=FALSE}
 sr<-hiso[which(!is.na(hiso$`87Sr/86Sr`) & hiso$Culture %in% c('Ertebølle','Funnel Beaker')),c('Culture','87Sr/86Sr')]
 
@@ -974,6 +1015,7 @@ plot(as.factor(sr[,1]),sr[,2],outline=FALSE,ylab=sr_yl,xlab='Culture',
 ```
 
 ### Carbon-Nitrogen biplots
+
 First we prepare some comparitive data from the faunal database:
 ```{r message=FALSE, warning=FALSE}
 da<-read_xlsx(dkURL, sheet='C-14 dates from domesticates') |> as.data.frame()
@@ -1087,6 +1129,7 @@ legend('top', ncol=2, lty=1, lwd=c(1.5,1.5), col=c('violet','purple'),
 ```
 
 ## Organic residues
+
 Chronological control for the organic residue analysis (ORA) data is provided by an external OxCal model whose .js file is loaded from disc along with the ORA data. This takes some time, so an rData file containing the posteriors has been included in the same respository as this document. 
 ```{r eval=FALSE}
 library(oxcAAR)
@@ -1106,7 +1149,9 @@ colnames(ora)[
 # Load chronological control
 
 ```
+
 ### Combining posteriors and uniform estimates of sample dates
+
 The following scipt builds a list in format used by `MCdensity` and `MCrunmed` to enable density estimation and moving average models. 
 ```{r message=FALSE, warning=FALSE}
 ora_dates<-list()
@@ -1117,7 +1162,9 @@ for(i in 1:nrow(ora)) {
 }
 class(ora_dates)<-'rowyears'
 ```
+
 ### Scatter plot of GC-c-IRMS results
+
 For a scatter plot of these data:
 ```{r message=FALSE, warning=FALSE}
 CE<-which(ora$`Coastal/inland`=='Coastal' & ora$Ware=='EBK')
@@ -1257,6 +1304,7 @@ legend('topright',xpd=TRUE, ncol=2, lty=1, col=c('#CC9900','#0000AA'),legend=c('
 ```
 
 ## Investigating spatial autocorrelation in presence and absence data
+
 The presence / absence of taxa can be used to investigate the effect of spatial distance on the composition of the assemblages at the site. The results indicate very little spatial structure to the composition of the shell middens. 
 ```{r, warning=FALSE, message=FALSE}
 zoop<-read_xlsx(dkURL, sheet='Shellfish taxa present') |> as.data.frame()
@@ -1321,7 +1369,8 @@ zoo_jac<-vegdist(zoop[SZ,], 'jaccard')
 vegan::mantel(zoo_GC, zoo_jac)
 
 # Marine mammal mantel
-# These 
+# .csv files containing pre-processed data have been included to reduce the 
+# amount of data wrangling required
 
 mm<-read.csv('dk_marine_mam.csv',row.names = 1)
 mlocs<-mm[,c('Long.','Lat.')]
@@ -1412,11 +1461,13 @@ vegan::mantel(ZFjac,FZjac)
 #mantel statistic r: 0.071 
 #      Significance: 0.295 
 ```
+
 # Part III Additional data analysis
 
 This section demonstrates some additional analyses that can be performed using the data in the database.
 
 ## Elevation of sites versus time
+
 Somewhat surprisingly there is no clear pattern in the elevation of sites, although no very low-lying sites are known from before ca. 5700 BC reflecting the loss of the Early Holocene coastline.
 ```{r message=FALSE, warning=FALSE}
 library(elevatr) # Requres a connection to INTERNET
@@ -1452,6 +1503,7 @@ plot(dk_kde,xlim=c(-6200,-2800),ylim=c(0,0.0006),ylab='Kernel density estimate',
 ```
 
 ## Distance to coast vs stable isotope results
+
 There are surprisingly few patterns when we consider the distance to coast.
 ```{r message=FALSE, warning=FALSE}
 # Jitter data slightly to improve visibility
@@ -1511,6 +1563,7 @@ plot(multidated$max-multidated$min,multidated$meanvol,pch=21,bg='#AA99FF',
      ylab='Estimated volume / cubic m', 
      xlim=c(0,2000), ylim=c(0,3000),cex=1.2)
 ```
+
 ## KDEs by date of publication
 
 The following plot demonstrates how the accumulation of data over the years has influenced our total knowledge about the temporal density of material from shell middens.
@@ -1681,12 +1734,14 @@ lines(1950-SL[,1],SL[,2], lty=3)
 legend('topleft',lty=c(2,1,3), legend=c('Limfjorden','Aarhus','South Lillbælt')
        ,bty='n')
 
-
+# Growth rate compared to rate-of-change of sea level
 plot(ggr(dk_kde), xlim=c(-6000,-2800),xaxt='n'); ax()
 plot(1950-Ar[-1,1],diff(Ar[,2]), type='l',lty=2,xlim=c(-6000,-2800), xaxt='n',
      ylim=c(0,15)); ax()
 lines(1950-Li[-1,1],diff(Li[,2]), lty=2)
-lines(1950-SL[-1,1],diff(SL[,2]), lty=2)
+lines(1950-SL[-1,1],diff(SL[,2]), lty=3)
+legend('bottomright',lty=c(2,1,3), legend=c('Limfjorden','Aarhus','South Lillbælt')
+       ,bty='n')
 
 ```
 
